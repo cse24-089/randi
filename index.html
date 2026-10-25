@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f5f7fb" />
+    <meta
+      name="description"
+      content="A prototype dashboard exploring Botswana job-market trends and skills demand."
+    />
+    <title>Thuso — Botswana Skills Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Main navigation">
+        <a class="brand" href="#overview" aria-label="Thuso home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 36 36" fill="none">
+              <path d="M7 23.5 15.2 15l5 5 8.8-10" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M22.8 10H29v6.2" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M7 28.5h22" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".55" />
+            </svg>
+          </span>
+          <span class="brand-copy">
+            <strong>thuso<span>.</span></strong>
+            <small>SKILLS INTELLIGENCE</small>
+          </span>
+        </a>
+
+        <div class="nav-label">WORKSPACE</div>
+        <nav class="nav-list">
+          <a class="nav-link active" href="#overview" data-view="Overview">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
+            <span>Overview</span>
+          </a>
+          <a class="nav-link" href="#trends" data-view="Market trends">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5V12m5 7.5V5m5 14.5v-9m5 9V8"/><path d="M2.5 20.5h19"/></svg>
+            <span>Market trends</span>
+          </a>
+          <a class="nav-link" href="#skills" data-view="Skills explorer">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 14.4 9l6 2.2-6 2.2-2.4 5.6-2.4-5.6-6-2.2L9.6 9 12 3.5Z"/><path d="m19 16 .9 2.1L22 19l-2.1.9L19 22l-.9-2.1L16 19l2.1-.9L19 16Z"/></svg>
+            <span>Skills explorer</span>
+          </a>
+          <a class="nav-link" href="#pathways" data-view="Career pathways">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6h3a4 4 0 0 1 4 4v1.5a4 4 0 0 0 4 4H21"/></svg>
+            <span>Career pathways</span>
+          </a>
+          <a class="nav-link" href="#employers" data-view="Hiring companies">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 20.5h17M5 20.5V8l7-4 7 4v12.5M9 11h.01M15 11h.01M9 14h.01M15 14h.01M10 20.5v-3h4v3"/></svg>
+            <span>Hiring companies</span>
+          </a>
+          <a class="nav-link" href="#learning" data-view="Skills &amp; education">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 9 9-5 9 5-9 5-9-5Zm4 2.5v5c3 2.5 7 2.5 10 0v-5M21 9v6"/></svg>
+            <span>Skills &amp; education</span>
+          </a>
+        </nav>
+
+        <div class="nav-label tools-label">YOUR TOOLS</div>
+        <nav class="nav-list">
+          <a class="nav-link" href="#saved" data-view="Saved insights">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.5h12v16l-6-3.8-6 3.8v-16Z"/></svg>
+            <span>Saved insights</span>
+            <span class="nav-count">0</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+        <div class="profile">
+          <div class="avatar">KG</div>
+          <div class="profile-copy"><strong>K. Gosego</strong><span>Career explorer</span></div>
+          <button class="icon-button profile-menu" aria-label="Profile options" type="button">
+            <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+          </button>
+        </div>
+      </aside>
+
+      <main class="main-content" id="overview">
+        <header class="topbar">
+          <div class="breadcrumb"><span>Workspace</span><span class="crumb-slash">/</span><strong id="page-heading">Overview</strong></div>
+          <div class="topbar-actions">
+            <span class="updated-label"><span class="live-dot"></span> SAMPLE DATASET · OCT 2026</span>
+            <button class="button button-outline auth-button" id="auth-toggle" type="button">Log out</button>
+            <button class="icon-button notification-button" aria-label="Notifications" type="button">
+              <svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Zm-8 12h4"/></svg>
+              <i></i>
+            </button>
+          </div>
+        </header>
+
+        <div class="page-wrap">
+          <section class="welcome-row">
+            <div>
+              <p class="eyebrow"><span class="flag-stripe"></span> BOTSWANA · LABOR MARKET SNAPSHOT</p>
+              <h1>Find your next <span>opportunity.</span></h1>
+              <p class="welcome-subtitle">See where the market is moving — and which skills can move you forward.</p>
+            </div>
+            <button class="button button-outline" id="download-report" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v11m0 0 4-4m-4 4-4-4M5 16.5v4h14v-4"/></svg>
+              Export snapshot
+            </button>
+          </section>
+
+          <section class="stat-grid" aria-label="Market snapshot metrics">
+            <article class="stat-card">
+              <div class="stat-top"><span>VACANCIES TRACKED</span><span class="stat-icon blue"><svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v2m-11 5h16m-10 0v2h4v-2"/></svg></span></div>
+              <div class="stat-value">1,284 <span class="trend positive">↗ 12.8%</span></div>
+              <p>Across 8 sectors <span class="muted-dot">·</span> illustrative sample</p>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span>HIRING MOMENTUM</span><span class="stat-icon green"><svg viewBox="0 0 24 24"><path d="m4 16 5-5 4 3 7-8"/><path d="M14 6h6v6"/></svg></span></div>
+              <div class="stat-value">+18.4% <span class="trend positive">↗ 4.2%</span></div>
+              <p>Year-on-year change <span class="muted-dot">·</span> sample postings</p>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span>IN-DEMAND SKILLS</span><span class="stat-icon violet"><svg viewBox="0 0 24 24"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/></svg></span></div>
+              <div class="stat-value">46 <span class="stat-caption">skills identified</span></div>
+              <p>Across roles and industries</p>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span>MEDIAN SALARY</span><span class="stat-icon amber"><svg viewBox="0 0 24 24"><path d="M12 3v18m4-14.5C16 5 14.5 4 12 4S8 5.2 8 7s1.5 2.6 4 3 4 1.3 4 3.5-1.8 3.5-4 3.5-4-.8-4-2.5"/></svg></span></div>
+              <div class="stat-value">P 8,450 <span class="stat-caption">/ month</span></div>
+              <p>Sampled roles with salary data</p>
+            </article>
+          </section>
+
+          <section class="dashboard-grid" id="trends">
+            <article class="panel trend-panel">
+              <div class="panel-heading">
+                <div>
+                  <div class="section-kicker">THE BIG PICTURE</div>
+                  <h2>Hiring is picking up</h2>
+                  <p>Vacancy activity across Botswana’s growing sectors</p>
+                </div>
+                <label class="select-wrap">
+                  <span class="sr-only">Select trend time period</span>
+                  <select id="period-select">
+                    <option value="6">Last 6 months</option>
+                    <option value="12" selected>Last 1 year</option>
+                    <option value="24">Last 2 years</option>
+                    <option value="36">Last 3 years</option>
+                    <option value="60">Last 5 years</option>
+                  </select>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                </label>
+              </div>
+              <div class="chart-legend">
+                <span><i class="legend-dot" style="--dot:#5269df"></i> Business &amp; finance</span>
+                <span><i class="legend-dot" style="--dot:#34b89a"></i> Technology</span>
+                <span><i class="legend-dot" style="--dot:#efb554"></i> Health &amp; care</span>
+              </div>
+              <div class="chart-wrap">
+                <div class="y-labels" aria-hidden="true"><span>400</span><span>300</span><span>200</span><span>100</span><span>0</span></div>
+                <svg class="trend-chart" id="trend-chart" viewBox="0 0 720 228" role="img" aria-label="Line chart showing illustrative vacancy activity rising across business, technology, and health sectors over the last 12 months">
+                  <defs>
+                    <linearGradient id="area-blue" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#5269df" stop-opacity=".15"/><stop offset="100%" stop-color="#5269df" stop-opacity="0"/></linearGradient>
+                  </defs>
+                  <g class="grid-lines"><path d="M0 14H720M0 61H720M0 108H720M0 155H720M0 202H720"/></g>
+                  <path class="chart-area" d="M0 154 L65 147 L130 151 L196 129 L261 137 L327 112 L392 121 L458 91 L523 103 L589 70 L654 78 L720 39 L720 202 L0 202 Z" fill="url(#area-blue)"/>
+                  <path class="chart-line business-line" d="M0 154 L65 147 L130 151 L196 129 L261 137 L327 112 L392 121 L458 91 L523 103 L589 70 L654 78 L720 39"/>
+                  <path class="chart-line tech-line" d="M0 176 L65 169 L130 172 L196 163 L261 166 L327 150 L392 157 L458 143 L523 147 L589 123 L654 128 L720 104"/>
+                  <path class="chart-line health-line" d="M0 188 L65 180 L130 185 L196 177 L261 173 L327 178 L392 165 L458 171 L523 155 L589 161 L654 147 L720 139"/>
+                  <circle class="chart-point" cx="720" cy="39" r="4.5"/>
+                </svg>
+              </div>
+              <div class="x-labels" id="chart-labels" aria-hidden="true"><span>Nov</span><span>Dec</span><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span></div>
+            </article>
+
+            <article class="panel sector-panel">
+              <div class="panel-heading compact-heading">
+                <div>
+                  <div class="section-kicker">WHERE THE JOBS ARE</div>
+                  <h2>Fastest-growing sectors</h2>
+                </div>
+                <button class="text-button" data-jump="employers">View all <span>→</span></button>
+              </div>
+              <div class="sector-list">
+                <div class="sector-row">
+                  <div class="sector-avatar sector-tech">⌘</div>
+                  <div class="sector-info"><strong>Technology</strong><span>Digital &amp; IT roles</span></div>
+                  <div class="sector-growth"><strong>+32%</strong><span>growth</span></div>
+                  <div class="sparkline spark-blue"><svg viewBox="0 0 76 30" aria-hidden="true"><path d="M2 24 13 20 24 22 35 14 46 17 57 8 74 3"/></svg></div>
+                </div>
+                <div class="sector-row">
+                  <div class="sector-avatar sector-finance">◈</div>
+                  <div class="sector-info"><strong>Financial services</strong><span>Banking &amp; insurance</span></div>
+                  <div class="sector-growth"><strong>+24%</strong><span>growth</span></div>
+                  <div class="sparkline spark-green"><svg viewBox="0 0 76 30" aria-hidden="true"><path d="m2 23 11-3 11 2 11-8 11 3 11-6 17-7"/></svg></div>
+                </div>
+                <div class="sector-row">
+                  <div class="sector-avatar sector-health">✚</div>
+                  <div class="sector-info"><strong>Health &amp; care</strong><span>Clinical &amp; community</span></div>
+                  <div class="sector-growth"><strong>+19%</strong><span>growth</span></div>
+                  <div class="sparkline spark-amber"><svg viewBox="0 0 76 30" aria-hidden="true"><path d="m2 24 11-8 11 5 11-4 11-7 11 5 17-9"/></svg></div>
+                </div>
+                <div class="sector-row">
+                  <div class="sector-avatar sector-energy">◉</div>
+                  <div class="sector-info"><strong>Energy &amp; mining</strong><span>Resources &amp; renewables</span></div>
+                  <div class="sector-growth"><strong>+15%</strong><span>growth</span></div>
+                  <div class="sparkline spark-violet"><svg viewBox="0 0 76 30" aria-hidden="true"><path d="m2 24 11-5 11 3 11-7 11 4 11-9 17-3"/></svg></div>
+                </div>
+              </div>
+              <div class="sector-source">Growth rates are illustrative, based on sample postings.</div>
+            </article>
+          </section>
+
+          <section class="lower-grid" id="skills">
+            <article class="panel skills-panel">
+              <div class="panel-heading compact-heading">
+                <div>
+                  <div class="section-kicker">SKILLS SIGNAL</div>
+                  <h2>What employers are asking for</h2>
+                  <p>Most-mentioned skills in sampled Botswana vacancies</p>
+                </div>
+                <div class="heading-actions">
+                  <button class="text-button" id="save-skills-button" type="button">Save skills</button>
+                  <button class="text-button" data-jump="learning" type="button">Explore skills <span>→</span></button>
+                </div>
+              </div>
+              <div class="skills-table">
+                <div class="table-head"><span>SKILL</span><span>DEMAND</span><span>CHANGE</span></div>
+                <div class="skill-row"><div class="skill-name"><span class="skill-dot dot-digital"></span><strong>Data analysis</strong><small>Digital</small></div><div class="demand-cell"><div class="demand-track"><span style="width:88%"></span></div><strong>88%</strong></div><span class="change-tag up">↗ 14%</span></div>
+                <div class="skill-row"><div class="skill-name"><span class="skill-dot dot-business"></span><strong>Financial reporting</strong><small>Business</small></div><div class="demand-cell"><div class="demand-track"><span style="width:76%"></span></div><strong>76%</strong></div><span class="change-tag up">↗ 9%</span></div>
+                <div class="skill-row"><div class="skill-name"><span class="skill-dot dot-digital"></span><strong>Cloud computing</strong><small>Digital</small></div><div class="demand-cell"><div class="demand-track"><span style="width:69%"></span></div><strong>69%</strong></div><span class="change-tag up">↗ 22%</span></div>
+                <div class="skill-row"><div class="skill-name"><span class="skill-dot dot-people"></span><strong>Project management</strong><small>People &amp; delivery</small></div><div class="demand-cell"><div class="demand-track"><span style="width:63%"></span></div><strong>63%</strong></div><span class="change-tag up">↗ 6%</span></div>
+                <div class="skill-row"><div class="skill-name"><span class="skill-dot dot-business"></span><strong>Customer service</strong><small>Business</small></div><div class="demand-cell"><div class="demand-track"><span style="width:57%"></span></div><strong>57%</strong></div><span class="change-tag down">↘ 2%</span></div>
+              </div>
+              <div class="table-footnote">Demand = share of sampled postings mentioning each skill. Illustrative prototype data.</div>
+            </article>
+
+            <article class="panel career-panel" id="pathways">
+              <div class="career-intro">
+                <div class="career-icon"><svg viewBox="0 0 24 24"><path d="M4 19.5V12m5 7.5V5m5 14.5v-9m5 9V8"/><path d="M2.5 20.5h19"/></svg></div>
+                <div><div class="section-kicker">YOUR NEXT MOVE</div><h2>Build a career path</h2></div>
+              </div>
+              <p class="career-copy">Pick a role to see the skills employers value — and where you can level up.</p>
+              <label class="role-label" for="role-select">I’m interested in</label>
+              <div class="role-select-wrap">
+                <select id="role-select">
+                  <option value="data-analyst">Data analyst</option>
+                  <option value="software-developer">Software developer</option>
+                  <option value="accountant">Accountant</option>
+                  <option value="nurse">Registered nurse</option>
+                  <option value="project-manager">Project manager</option>
+                </select>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+              </div>
+              <div class="role-insight" aria-live="polite">
+                <div class="role-topline"><span>ROLE OUTLOOK</span><span class="outlook-badge"><i></i><span id="outlook-label">Strong demand</span></span></div>
+                <h3 id="role-title">Data analyst</h3>
+                <p id="role-summary">Growing demand across finance, retail, and public services.</p>
+                <div class="role-skills" id="role-skills"></div>
+                <div class="match-row"><span>Skills match opportunity</span><strong id="match-value">78%</strong></div>
+                <div class="match-track"><span id="match-bar" style="width:78%"></span></div>
+              </div>
+              <div class="pathway-actions">
+                <button class="button button-outline" id="save-pathway-button" type="button">Save pathway</button>
+                <button class="button button-primary" id="pathway-button" type="button">Explore this pathway <span>→</span></button>
+              </div>
+            </article>
+          </section>
+
+          <section class="directory-grid" aria-label="Employers and learning providers">
+            <article class="panel directory-panel" id="employers">
+              <div class="panel-heading">
+                <div>
+                  <div class="section-kicker">CAREER OPPORTUNITIES</div>
+                  <h2>Hiring companies</h2>
+                  <p>Employers to explore across Botswana</p>
+                </div>
+              </div>
+              <ul class="directory-list">
+                <li><strong>Botswana Telecommunications Corporation</strong><span>Technology · Customer service</span></li>
+                <li><strong>First National Bank Botswana</strong><span>Finance · Data · Digital services</span></li>
+                <li><strong>Debswana</strong><span>Mining · Engineering · Operations</span></li>
+                <li><strong>Botswana Power Corporation</strong><span>Energy · Engineering · Operations</span></li>
+              </ul>
+            </article>
+
+            <article class="panel directory-panel" id="learning">
+              <div class="panel-heading">
+                <div>
+                  <div class="section-kicker">BUILD YOUR SKILLS</div>
+                  <h2>Education &amp; training</h2>
+                  <p>Institutions to explore for skills and qualifications</p>
+                </div>
+              </div>
+              <ul class="directory-list">
+                <li><strong>Botswana Accountancy College</strong><span>Accounting · Finance · Business · ICT</span></li>
+                <li><strong>University of Botswana</strong><span>Higher education · Research · Professional fields</span></li>
+                <li><strong>Botho University</strong><span>Technology · Business · Health education</span></li>
+                <li><strong>Botswana Open University</strong><span>Open and distance learning</span></li>
+              </ul>
+            </article>
+          </section>
+
+          <section class="saved-page panel" id="saved">
+            <div class="panel-heading">
+              <div>
+                <div class="section-kicker">YOUR TOOLS</div>
+                <h2>Saved insights</h2>
+                <p>Keep useful skills and career pathways close at hand.</p>
+              </div>
+            </div>
+            <div class="saved-list" id="saved-list" aria-live="polite"></div>
+          </section>
+          <footer class="page-footer">
+            <span>Thuso <span class="footer-dot">·</span> Helping Botswana grow with insight.</span>
+            <span>Prototype for exploration <span class="footer-dot">·</span> Data shown is illustrative.</span>
+          </footer>
+        </div>
+      </main>
+    </div>
+    <dialog class="action-dialog" id="action-dialog" aria-labelledby="dialog-title">
+      <div class="dialog-heading">
+        <h2 id="dialog-title"></h2>
+        <button class="icon-button dialog-close" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="dialog-content" id="dialog-content"></div>
+    </dialog>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
