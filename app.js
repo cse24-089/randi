@@ -35,6 +35,8 @@ const roles = {
     skills: ["Project management", "Agile", "Leadership", "Planning"],
   },
 };
+const liveRoles = new Map();
+let liveTrendRows = [];
 
 const roleSelect = document.querySelector("#role-select");
 const roleTitle = document.querySelector("#role-title");
@@ -49,38 +51,29 @@ const dialogTitle = document.querySelector("#dialog-title");
 const dialogContent = document.querySelector("#dialog-content");
 let toastTimer;
 const savedInsights = new Map();
-const savedInsightsStorageKey = "thuso-saved-insights";
-let canPersistSavedInsights = true;
+let currentUser = null;
+let csrfToken = null;
+let hasImportedMarketData = false;
 
-try {
-  const storedInsights = JSON.parse(localStorage.getItem(savedInsightsStorageKey) ?? "[]");
-  if (Array.isArray(storedInsights)) {
-    storedInsights.forEach((entry) => {
-      if (
-        Array.isArray(entry)
-        && typeof entry[0] === "string"
-        && entry[1]
-        && typeof entry[1].title === "string"
-        && typeof entry[1].description === "string"
-      ) {
-        savedInsights.set(entry[0], { title: entry[1].title, description: entry[1].description });
-      }
-    });
-  }
-} catch (error) {
-  console.error("Saved insights could not be loaded from this browser.", error);
-}
+async function apiRequest(url, options = {}) {
+  const method = options.method ?? "GET";
+  const headers = new Headers(options.headers ?? {});
+  if (method !== "GET" && method !== "HEAD") {
+    if (!csrfToken) {
+      const csrfResponse = await fetch("/api/csrf", { credentials: "same-origin" });
+      if (!csrfResponse.ok) throw new Error("Could not initialize a secure session. Check that Thuso is running on its application server.");
+      csrfToken = (await csrfResponse.json()).csrfToken;
+    }
 
-function persistSavedInsights() {
-  try {
-    localStorage.setItem(savedInsightsStorageKey, JSON.stringify([...savedInsights]));
-    canPersistSavedInsights = true;
-    return true;
-  } catch (error) {
-    canPersistSavedInsights = false;
-    console.error("Saved insights could not be stored in this browser.", error);
-    return false;
+    headers.set("X-CSRF-Token", csrfToken);
   }
+  if (options.body && !(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
+  const response = await fetch(url, { ...options, method, headers, credentials: "same-origin" });
+  if (response.status === 204) return null;
+  const contentType = response.headers.get("content-type") ?? "";
+  const payload = contentType.includes("application/json") ? await response.json() : null;
+  if (!response.ok) throw new Error(payload?.error ?? `Request failed (${response.status}).`);
+  return payload;
 }
 
 function showToast(message) {
@@ -91,7 +84,7 @@ function showToast(message) {
 }
 
 function updateRole() {
-  const role = roles[roleSelect.value];
+  const role = getSelectedRole();
   if (!role) return;
   roleTitle.textContent = role.title;
   roleSummary.textContent = role.summary;
@@ -155,7 +148,7 @@ document.querySelectorAll("[data-jump]").forEach((button) => {
 });
 
 function getSelectedRole() {
-  return roles[roleSelect.value];
+  return liveRoles.get(roleSelect.value) ?? roles[roleSelect.value];
 }
 
 function updateSavedInsights() {
@@ -186,26 +179,33 @@ function updateSavedInsights() {
     removeButton.type = "button";
     removeButton.textContent = "Remove";
     removeButton.addEventListener("click", () => {
-      saveInsight(id, insight.title, insight.description);
+      saveInsight(id, insight.title, insight.description).catch(showApiError);
     });
     item.append(details, removeButton);
     savedList.append(item);
   });
 }
 
-function saveInsight(id, title, description) {
-  let message;
-  if (savedInsights.has(id)) {
-    savedInsights.delete(id);
-    message = `${title} removed from saved insights.`;
-  } else {
-    savedInsights.set(id, { title, description });
-    message = `${title} added to saved insights.`;
+async function saveInsight(id, title, description) {
+  if (!currentUser) {
+    openAuthDialog();
+    showToast("Sign in to save insights to your account.");
+    return;
   }
-  persistSavedInsights();
+  if (savedInsights.has(id)) {
+    await apiRequest(`/api/saved-insights/${encodeURIComponent(id)}`, { method: "DELETE" });
+    savedInsights.delete(id);
+    showToast(`${title} removed from saved insights.`);
+  } else {
+    const result = await apiRequest(`/api/saved-insights/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      body: JSON.stringify({ title, description }),
+    });
+    savedInsights.set(id, result.insight);
+    showToast(`${title} added to saved insights.`);
+  }
   updateSavedInsights();
   updateSaveButtons();
-  showToast(canPersistSavedInsights ? message : `${message} It will only be saved for this session.`);
 }
 
 function updateSaveButtons() {
@@ -217,11 +217,16 @@ function updateSaveButtons() {
     : "Save pathway";
 }
 
+function showApiError(error) {
+  console.error("Thuso request failed.", error);
+  showToast(error.message || "The request could not be completed.");
+}
+
 function openDialog(title, contentBuilder) {
   dialogTitle.textContent = title;
   dialogContent.replaceChildren();
   contentBuilder(dialogContent);
-  actionDialog.showModal();
+  if (!actionDialog.open) actionDialog.showModal();
 }
 
 function addDialogParagraph(container, text) {
@@ -239,19 +244,347 @@ function addDialogButton(container, label, action, primary = false) {
   container.append(button);
 }
 
-function toggleAuthentication() {
-  isLoggedIn = !isLoggedIn;
-  authToggle.textContent = isLoggedIn ? "End demo" : "Try demo";
-  document.querySelector(".profile-copy strong").textContent = isLoggedIn ? "Demo user" : "Guest";
-  document.querySelector(".profile-copy span").textContent = isLoggedIn ? "Career explorer" : "Browsing as guest";
-  document.querySelector(".avatar").textContent = isLoggedIn ? "D" : "G";
-  showToast(isLoggedIn
-    ? "Demo profile activated. This prototype does not provide secure account login."
-    : "Demo session ended. Your prototype profile is now signed out.");
+function addFormField(form, { label, name, value = "", type = "text", required = false, autocomplete }) {
+  const field = document.createElement("label");
+  field.className = "form-field";
+  field.textContent = label;
+  const input = type === "textarea" ? document.createElement("textarea") : document.createElement("input");
+  input.name = name;
+  if (type !== "textarea") input.type = type;
+  input.value = value;
+  input.required = required;
+  if (autocomplete) input.autocomplete = autocomplete;
+  field.append(input);
+  form.append(field);
+  return input;
 }
 
-document.querySelector("#pathway-button").addEventListener("click", () => {
+function splitProfileList(value) {
+  return value.split(/\n|,/).map((entry) => entry.trim()).filter(Boolean);
+}
+
+function updateAccountChrome() {
+  const profileName = document.querySelector(".profile-copy strong");
+  const profileType = document.querySelector(".profile-copy span");
+  document.querySelector(".avatar").textContent = currentUser?.displayName?.slice(0, 1).toUpperCase() ?? "G";
+  profileName.textContent = currentUser?.displayName ?? "Guest";
+  profileType.textContent = currentUser ? "Career explorer" : "Browsing as guest";
+  authToggle.textContent = currentUser ? "My profile" : "Sign in";
+  const adminLink = document.querySelector(".admin-nav-link");
+  adminLink.hidden = currentUser?.role !== "admin";
+  if (!currentUser?.role || currentUser.role !== "admin") {
+    document.querySelector("#admin").hidden = true;
+  }
+}
+
+function openAuthDialog(mode = "login") {
+  const render = (selectedMode) => {
+    dialogTitle.textContent = selectedMode === "register" ? "Create your Thuso account" : "Sign in to Thuso";
+    dialogContent.replaceChildren();
+    const form = document.createElement("form");
+    form.className = "form-stack";
+    if (selectedMode === "register") {
+      addFormField(form, { label: "Full name", name: "displayName", required: true, autocomplete: "name" });
+    }
+    addFormField(form, { label: "Email address", name: "email", type: "email", required: true, autocomplete: "email" });
+    addFormField(form, { label: "Password", name: "password", type: "password", required: true, autocomplete: selectedMode === "register" ? "new-password" : "current-password" });
+    const submit = document.createElement("button");
+    submit.className = "button button-primary";
+    submit.type = "submit";
+    submit.textContent = selectedMode === "register" ? "Create account" : "Sign in";
+    form.append(submit);
+    const switchButton = document.createElement("button");
+    switchButton.className = "text-button auth-switch";
+    switchButton.type = "button";
+    switchButton.textContent = selectedMode === "register" ? "Already have an account? Sign in" : "New to Thuso? Create an account";
+    switchButton.addEventListener("click", () => render(selectedMode === "register" ? "login" : "register"));
+    form.append(switchButton);
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const values = Object.fromEntries(new FormData(form).entries());
+      submit.disabled = true;
+      try {
+        const endpoint = selectedMode === "register" ? "/api/auth/register" : "/api/auth/login";
+        const result = await apiRequest(endpoint, { method: "POST", body: JSON.stringify(values) });
+        csrfToken = null;
+        currentUser = result.user;
+        await refreshSavedInsights();
+        updateAccountChrome();
+        actionDialog.close();
+        showToast(`Welcome${currentUser.displayName ? `, ${currentUser.displayName}` : ""}.`);
+        loadRecommendations().catch(showApiError);
+        if (currentUser.role === "admin") {
+          Promise.all([loadImportHistory(), loadAdminOverview()]).catch(showApiError);
+        }
+      } catch (error) {
+        showApiError(error);
+        submit.disabled = false;
+      }
+    });
+    dialogContent.append(form);
+    if (!actionDialog.open) actionDialog.showModal();
+  };
+  render(mode);
+}
+
+async function refreshSavedInsights() {
+  savedInsights.clear();
+  if (currentUser) {
+    const result = await apiRequest("/api/saved-insights");
+    result.insights.forEach((insight) => savedInsights.set(insight.id, insight));
+  }
+  updateSavedInsights();
+  updateSaveButtons();
+}
+
+function openProfileDialog() {
+  if (!currentUser) {
+    openAuthDialog();
+    return;
+  }
+  const render = async () => {
+    try {
+      const result = await apiRequest("/api/profile");
+      const profile = result.profile;
+      dialogTitle.textContent = "Your career profile";
+      dialogContent.replaceChildren();
+      const form = document.createElement("form");
+      form.className = "form-stack profile-form";
+      addFormField(form, { label: "Display name", name: "displayName", value: profile.displayName, required: true });
+      addFormField(form, { label: "Skills (comma-separated)", name: "skills", value: profile.skills.map((skill) => skill.name).join(", ") });
+      addFormField(form, { label: "Qualifications (comma-separated)", name: "qualifications", value: profile.qualifications.join(", ") });
+      addFormField(form, { label: "Career interests (comma-separated)", name: "interests", value: profile.interests.join(", ") });
+      addFormField(form, { label: "Career goals (comma-separated)", name: "careerGoals", value: profile.careerGoals.join(", ") });
+      const submit = document.createElement("button");
+      submit.className = "button button-primary";
+      submit.type = "submit";
+      submit.textContent = "Save profile";
+      form.append(submit);
+      const signOutButton = document.createElement("button");
+      signOutButton.className = "button button-outline";
+      signOutButton.type = "button";
+      signOutButton.textContent = "Sign out";
+      signOutButton.addEventListener("click", () => signOut().catch(showApiError));
+      form.append(signOutButton);
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const values = Object.fromEntries(new FormData(form).entries());
+        const proficiencies = new Map(profile.skills.map((skill) => [skill.name.toLowerCase(), skill.proficiency]));
+        try {
+          const saved = await apiRequest("/api/profile", {
+            method: "PUT",
+            body: JSON.stringify({
+              displayName: values.displayName,
+              skills: splitProfileList(values.skills).map((name) => ({
+                name,
+                proficiency: proficiencies.get(name.toLowerCase()) ?? "developing",
+              })),
+              qualifications: splitProfileList(values.qualifications),
+              interests: splitProfileList(values.interests),
+              careerGoals: splitProfileList(values.careerGoals),
+            }),
+          });
+          currentUser = saved.profile;
+          updateAccountChrome();
+          await loadRecommendations();
+          actionDialog.close();
+          showToast("Your profile has been updated.");
+        } catch (error) {
+          showApiError(error);
+        }
+      });
+      dialogContent.append(form);
+      if (!actionDialog.open) actionDialog.showModal();
+    } catch (error) {
+      showApiError(error);
+    }
+  };
+  render();
+}
+
+async function loadImportHistory() {
+  const result = await apiRequest("/api/admin/imports");
+  const history = document.querySelector("#import-history");
+  history.replaceChildren();
+  if (!result.imports.length) {
+    history.textContent = "No datasets imported yet.";
+    return;
+  }
+  for (const item of result.imports) {
+    const row = document.createElement("div");
+    row.className = "import-history-row";
+    row.textContent = `${item.filename} · ${item.inserted} new · ${item.updated} updated · ${new Date(item.importedAt).toLocaleString()}`;
+    history.append(row);
+  }
+}
+
+async function loadAdminOverview() {
+  const result = await apiRequest("/api/admin/overview");
+  const container = document.querySelector("#admin-overview");
+  const overview = result.overview;
+  const metrics = [
+    ["Registered accounts", overview.users],
+    ["Job postings", overview.job_postings],
+    ["Training providers", overview.training_providers],
+    ["Total imports", overview.imports],
+    ["Imports · last 30 days", overview.imports_last_30_days],
+    ["Database connections", result.databasePool.total === null
+      ? "Unavailable"
+      : `${result.databasePool.total} total · ${result.databasePool.idle} idle`],
+    ["Waiting database queries", result.databasePool.waiting ?? "Unavailable"],
+  ];
+  container.replaceChildren(...metrics.map(([label, value]) => {
+    const card = document.createElement("div");
+    card.className = "admin-overview-card";
+    card.append(document.createTextNode(label));
+    const amount = document.createElement("strong");
+    amount.textContent = typeof value === "number" ? value.toLocaleString() : String(value);
+    card.append(amount);
+    return card;
+  }));
+}
+
+async function loadDashboardData() {
+  try {
+    const [summaryResult, skillsResult, employersResult, trainingResult, trendResult] = await Promise.all([
+      apiRequest("/api/market/summary"),
+      apiRequest("/api/market/skills"),
+      apiRequest("/api/market/employers"),
+      apiRequest("/api/market/training"),
+      apiRequest(`/api/market/trends?months=${periodSelect.value}`),
+    ]);
+    const summary = summaryResult.summary;
+    hasImportedMarketData = !summaryResult.illustrative;
+    if (!summaryResult.illustrative) {
+      document.querySelector("#metric-vacancies").textContent = Number(summary.vacancies).toLocaleString();
+      document.querySelector("#metric-vacancy-change").textContent = `${Number(summary.annual_change) >= 0 ? "↗ " : "↘ "}${Math.abs(Number(summary.annual_change))}%`;
+      document.querySelector("#metric-vacancy-caption").textContent = `Across ${summary.sectors} sectors · ${summary.sources} data sources`;
+      document.querySelector("#metric-momentum").textContent = `${Number(summary.annual_change) > 0 ? "+" : ""}${summary.annual_change}%`;
+      document.querySelector("#metric-momentum-caption").textContent = "Year-on-year change · imported postings";
+      document.querySelector("#metric-skills").textContent = Number(skillsResult.skills[0]?.skill_count ?? 0).toLocaleString();
+      document.querySelector("#metric-salary").textContent = summary.median_salary === null ? "—" : `P ${Number(summary.median_salary).toLocaleString()}`;
+      document.querySelector("#metric-salary-caption").textContent = "Median · imported monthly salaries";
+      document.querySelector("#data-disclaimer").textContent = "Imported labour-market data. Coverage depends on sources supplied by administrators.";
+      document.querySelector(".updated-label").textContent = "IMPORTED LABOUR-MARKET DATA";
+      liveTrendRows = trendResult.months;
+      updateChart();
+      renderMarketLists(skillsResult.skills, employersResult.employers, trainingResult.providers);
+    } else {
+      document.querySelector(".updated-label").textContent = "SAMPLE DATA · IMPORT A CSV TO UPDATE";
+      if (trainingResult.providers.length) {
+        renderDirectory("#training-list", trainingResult.providers.slice(0, 8).map((provider) => ({
+          title: provider.name,
+          description: `${provider.location} · ${provider.offerings.join(" · ")}`,
+        })));
+        document.querySelector("#data-disclaimer").textContent = "Market figures are illustrative; the training directory reflects imported provider data.";
+      }
+    }
+  } catch (error) {
+    document.querySelector(".updated-label").textContent = "SAMPLE DATA · APPLICATION SERVER REQUIRED";
+    document.querySelector("#data-disclaimer").textContent = "Illustrative sample data. Run the Thuso Node.js server and PostgreSQL database to use accounts, imports, and live analytics.";
+    console.error("Labour-market dashboard could not connect to the API.", error);
+  }
+}
+
+function renderMarketLists(skills, employers, providers) {
+  const table = document.querySelector("#skills-table");
+  const header = table.querySelector(".table-head");
+  table.replaceChildren(header);
+  for (const skill of skills.slice(0, 5)) {
+    const row = document.createElement("div");
+    row.className = "skill-row";
+    const name = document.createElement("div");
+    name.className = "skill-name";
+    const dot = document.createElement("span");
+    dot.className = "skill-dot dot-digital";
+    const label = document.createElement("strong");
+    label.textContent = skill.skill;
+    name.append(dot, label);
+    const demand = document.createElement("div");
+    demand.className = "demand-cell";
+    const track = document.createElement("div");
+    track.className = "demand-track";
+    const fill = document.createElement("span");
+    fill.style.width = `${Math.min(100, Number(skill.demand_percent))}%`;
+    track.append(fill);
+    const percentage = document.createElement("strong");
+    percentage.textContent = `${skill.demand_percent}%`;
+    demand.append(track, percentage);
+    const change = document.createElement("span");
+    change.className = `change-tag ${skill.change_percent >= 0 ? "up" : "down"}`;
+    change.textContent = skill.trend === "emerging"
+      ? "New"
+      : `${skill.change_percent >= 0 ? "↗" : "↘"} ${Math.abs(Number(skill.change_percent))}%`;
+    row.append(name, demand, change);
+    table.append(row);
+  }
+  renderDirectory("#employer-list", employers.slice(0, 8).map((employer) => ({
+    title: employer.name,
+    description: `${employer.sector} · ${employer.vacancies} tracked postings`,
+  })));
+  renderDirectory("#training-list", providers.slice(0, 8).map((provider) => ({
+    title: provider.name,
+    description: `${provider.location} · ${provider.offerings.join(" · ")}`,
+  })));
+}
+
+function renderDirectory(selector, entries) {
+  const list = document.querySelector(selector);
+  list.replaceChildren();
+  for (const entry of entries) {
+    const item = document.createElement("li");
+    const title = document.createElement("strong");
+    title.textContent = entry.title;
+    const description = document.createElement("span");
+    description.textContent = entry.description;
+    item.append(title, description);
+    list.append(item);
+  }
+}
+
+async function loadRecommendations() {
+  if (!currentUser) return;
+  const result = await apiRequest("/api/recommendations");
+  if (!result.recommendations.length) return;
+  liveRoles.clear();
+  const options = result.recommendations.map((recommendation) => {
+    const id = recommendation.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const role = {
+      title: recommendation.title,
+      summary: `${recommendation.vacancies} tracked postings in ${recommendation.sector}.`,
+      outlook: recommendation.vacancies >= 20 ? "Strong demand" : "Market demand",
+      match: Number(recommendation.suitability),
+      skills: recommendation.skills,
+      missingSkills: recommendation.missing_skills,
+    };
+    liveRoles.set(id, role);
+    return { id, title: recommendation.title };
+  });
+  const selectedId = roleSelect.value;
+  roleSelect.replaceChildren(...options.map(({ id, title }) => {
+    const option = document.createElement("option");
+    option.value = id;
+    option.textContent = title;
+    return option;
+  }));
+  roleSelect.value = liveRoles.has(selectedId) ? selectedId : options[0].id;
+  updateRole();
+  updateSaveButtons();
+}
+
+document.querySelector("#pathway-button").addEventListener("click", async () => {
   const role = getSelectedRole();
+  let missingSkills = role.missingSkills ?? [];
+  let training = [];
+  if (currentUser && liveRoles.has(roleSelect.value)) {
+    try {
+      const result = await apiRequest(`/api/skills-gap?role=${encodeURIComponent(role.title)}`);
+      missingSkills = result.report?.missingSkills ?? missingSkills;
+      training = result.training;
+    } catch (error) {
+      showApiError(error);
+    }
+  }
   openDialog(`${role.title} pathway`, (container) => {
     addDialogParagraph(container, role.summary);
     const skills = document.createElement("ul");
@@ -261,6 +594,12 @@ document.querySelector("#pathway-button").addEventListener("click", () => {
       skills.append(item);
     });
     container.append(skills);
+    if (missingSkills.length) {
+      addDialogParagraph(container, `Skills to build: ${missingSkills.join(" · ")}`);
+    }
+    if (training.length) {
+      addDialogParagraph(container, `Matching training providers: ${training.map((provider) => `${provider.name} · ${provider.location}`).join("; ")}`);
+    }
     addDialogParagraph(container, "Suggested next steps: compare training options, practise the listed skills, and review relevant employer opportunities.");
     const actions = document.createElement("div");
     actions.className = "dialog-actions";
@@ -272,24 +611,49 @@ document.querySelector("#pathway-button").addEventListener("click", () => {
       `pathway-${roleSelect.value}`,
       `${role.title} pathway`,
       role.skills.join(" · "),
-    ), true);
+    ).catch(showApiError), true);
     container.append(actions);
   });
 });
 
 document.querySelector("#save-skills-button").addEventListener("click", () => {
-  saveInsight("skills", "In-demand skills", "Data analysis · Financial reporting · Cloud computing · Project management · Customer service");
+  saveInsight("skills", "In-demand skills", "Demand-ranked skills extracted from imported job postings.").catch(showApiError);
 });
 
 document.querySelector("#save-pathway-button").addEventListener("click", () => {
   const role = getSelectedRole();
-  saveInsight(`pathway-${roleSelect.value}`, `${role.title} pathway`, role.skills.join(" · "));
+  saveInsight(`pathway-${roleSelect.value}`, `${role.title} pathway`, role.skills.join(" · ")).catch(showApiError);
 });
 
 const authToggle = document.querySelector("#auth-toggle");
-let isLoggedIn = true;
+async function signOut() {
+  if (!currentUser) return;
+  await apiRequest("/api/auth/logout", { method: "POST", body: "{}" });
+  currentUser = null;
+  csrfToken = null;
+  await refreshSavedInsights();
+  liveRoles.clear();
+  roleSelect.replaceChildren(
+    ...Object.entries(roles).map(([id, role]) => {
+      const option = document.createElement("option");
+      option.value = id;
+      option.textContent = role.title;
+      return option;
+    }),
+  );
+  updateRole();
+  updateAccountChrome();
+  actionDialog.close();
+  showToast("You have signed out.");
+}
 
-authToggle.addEventListener("click", toggleAuthentication);
+authToggle.addEventListener("click", () => {
+  if (!currentUser) {
+    openAuthDialog();
+    return;
+  }
+  openProfileDialog();
+});
 
 document.querySelector(".notification-button").addEventListener("click", () => {
   openDialog("Notifications", (container) => {
@@ -309,13 +673,7 @@ document.querySelector(".notification-button").addEventListener("click", () => {
 });
 
 document.querySelector(".profile-menu").addEventListener("click", () => {
-  openDialog("Profile options", (container) => {
-    addDialogParagraph(container, `${isLoggedIn ? "Demo user" : "Guest"} · ${isLoggedIn ? "Career explorer" : "Browsing as guest"}`);
-    addDialogButton(container, isLoggedIn ? "End demo" : "Try demo", () => {
-      toggleAuthentication();
-      actionDialog.close();
-    }, true);
-  });
+  openProfileDialog();
 });
 
 document.querySelector(".dialog-close").addEventListener("click", () => actionDialog.close());
@@ -329,8 +687,48 @@ document.querySelector(".brand").addEventListener("click", (event) => {
   navigateTo("overview");
 });
 
+document.querySelector("#market-import-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector("button[type=submit]");
+  if (!form.reportValidity()) return;
+  button.disabled = true;
+  const formData = new FormData(form);
+  try {
+    const result = await apiRequest("/api/admin/imports", { method: "POST", body: formData });
+    form.reset();
+    showToast(`Imported ${result.imported} records (${result.inserted} new, ${result.updated} updated).`);
+    await Promise.all([loadImportHistory(), loadAdminOverview(), loadDashboardData()]);
+  } catch (error) {
+    showApiError(error);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.querySelector(".admin-nav-link").addEventListener("click", () => {
+  if (currentUser?.role === "admin") {
+    Promise.all([loadImportHistory(), loadAdminOverview()]).catch(showApiError);
+  }
+});
+
 updateSavedInsights();
 updateSaveButtons();
+updateAccountChrome();
+apiRequest("/api/auth/me")
+  .then(async (result) => {
+    currentUser = result.user;
+    updateAccountChrome();
+    await refreshSavedInsights();
+    await loadRecommendations();
+    if (currentUser?.role === "admin") {
+      Promise.all([loadImportHistory(), loadAdminOverview()]).catch(showApiError);
+    }
+  })
+  .catch((error) => {
+    console.error("Thuso could not check the current account.", error);
+    document.querySelector(".updated-label").textContent = "SAMPLE DATA · APPLICATION SERVER REQUIRED";
+  });
 
 function escapeSvgText(value) {
   return value.replace(/[&<>"']/g, (character) => ({
@@ -344,6 +742,36 @@ function escapeSvgText(value) {
 
 async function downloadSnapshotImage() {
   const role = getSelectedRole();
+  const metric = (selector) => document.querySelector(selector).textContent.trim();
+  const importedData = document.querySelector("#data-disclaimer").textContent.startsWith("Imported");
+  const chartLines = [...chart.querySelectorAll(".chart-line")].filter((line) => line.getAttribute("d"));
+  const lineMarkup = chartLines.map((line) => (
+    `<path d="${line.getAttribute("d")}" fill="none" stroke="${getComputedStyle(line).stroke}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`
+  )).join("");
+  const legend = [...document.querySelectorAll(".chart-legend span")].map((item, index) => {
+    const color = item.querySelector(".legend-dot")?.style.getPropertyValue("--dot") || ["#5269df", "#34b89a", "#efb554"][index];
+    return { label: item.textContent.trim(), color };
+  });
+  const legendMarkup = legend.map((item, index) => `
+    <circle cx="${100 + index * 170}" cy="735" r="5" fill="${escapeSvgText(item.color)}"/>
+    <text x="${112 + index * 170}" y="740" fill="#818a9d" font-family="Arial, sans-serif" font-size="13">${escapeSvgText(item.label)}</text>
+  `).join("");
+  const chartDateLabels = [...chartLabels.children].map((label) => label.textContent.trim());
+  const dateLabelInterval = Math.max(1, Math.ceil(chartDateLabels.length / 6));
+  const dateLabelsMarkup = chartDateLabels
+    .filter((_label, index) => index % dateLabelInterval === 0 || index === chartDateLabels.length - 1)
+    .map((label, index, visibleLabels) => `
+      <text x="${90 + index * 460 / Math.max(1, visibleLabels.length - 1)}" y="687" text-anchor="${index === 0 ? "start" : index === visibleLabels.length - 1 ? "end" : "middle"}">${escapeSvgText(label)}</text>
+    `).join("");
+  const yAxisLabels = [...document.querySelectorAll(".y-labels span")].map((label) => label.textContent.trim());
+  const yAxisMarkup = yAxisLabels.map((label, index) => `
+    <path d="M90 ${420 + index * 60}H550"/>
+    <text x="77" y="${424 + index * 60}" text-anchor="end" fill="#aab1bd" font-family="Arial, sans-serif" font-size="11">${escapeSvgText(label)}</text>
+  `).join("");
+  const skillsMarkup = role.skills.slice(0, 5).map((skill, index) => `
+    <rect x="644" y="${486 + index * 43}" width="460" height="32" rx="7" fill="#f5f7fb"/>
+    <text x="660" y="${507 + index * 43}" fill="#526078" font-family="Arial, sans-serif" font-size="15">${escapeSvgText(skill)}</text>
+  `).join("");
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
       <rect width="1200" height="800" fill="#f5f7fb"/>
@@ -354,41 +782,32 @@ async function downloadSnapshotImage() {
       <g font-family="Arial, sans-serif">
         <rect x="48" y="165" width="267" height="112" rx="12" fill="#fff" stroke="#edf0f5"/>
         <text x="68" y="197" fill="#8992a5" font-size="13" font-weight="700">VACANCIES TRACKED</text>
-        <text x="68" y="239" fill="#263047" font-size="32" font-weight="700">1,284</text>
-        <text x="68" y="261" fill="#8992a5" font-size="13">Across 8 sectors · sample</text>
+        <text x="68" y="239" fill="#263047" font-size="32" font-weight="700">${escapeSvgText(metric("#metric-vacancies"))}</text>
+        <text x="68" y="261" fill="#8992a5" font-size="13">${escapeSvgText(metric("#metric-vacancy-caption"))}</text>
 
         <rect x="327" y="165" width="267" height="112" rx="12" fill="#fff" stroke="#edf0f5"/>
         <text x="347" y="197" fill="#8992a5" font-size="13" font-weight="700">HIRING MOMENTUM</text>
-        <text x="347" y="239" fill="#263047" font-size="32" font-weight="700">+18.4%</text>
-        <text x="347" y="261" fill="#8992a5" font-size="13">Year-on-year change</text>
+        <text x="347" y="239" fill="#263047" font-size="32" font-weight="700">${escapeSvgText(metric("#metric-momentum"))}</text>
+        <text x="347" y="261" fill="#8992a5" font-size="13">${escapeSvgText(metric("#metric-momentum-caption"))}</text>
 
         <rect x="606" y="165" width="267" height="112" rx="12" fill="#fff" stroke="#edf0f5"/>
         <text x="626" y="197" fill="#8992a5" font-size="13" font-weight="700">IN-DEMAND SKILLS</text>
-        <text x="626" y="239" fill="#263047" font-size="32" font-weight="700">46</text>
+        <text x="626" y="239" fill="#263047" font-size="32" font-weight="700">${escapeSvgText(metric("#metric-skills"))}</text>
         <text x="626" y="261" fill="#8992a5" font-size="13">Skills identified</text>
 
         <rect x="885" y="165" width="267" height="112" rx="12" fill="#fff" stroke="#edf0f5"/>
-        <text x="905" y="197" fill="#8992a5" font-size="13" font-weight="700">MEDIAN SAMPLE SALARY</text>
-        <text x="905" y="239" fill="#263047" font-size="32" font-weight="700">P 8,450</text>
+        <text x="905" y="197" fill="#8992a5" font-size="13" font-weight="700">${importedData ? "MEDIAN SALARY" : "MEDIAN SAMPLE SALARY"}</text>
+        <text x="905" y="239" fill="#263047" font-size="32" font-weight="700">${escapeSvgText(metric("#metric-salary"))}</text>
         <text x="905" y="261" fill="#8992a5" font-size="13">Per month</text>
       </g>
 
       <rect x="48" y="300" width="540" height="414" rx="12" fill="#fff" stroke="#edf0f5"/>
-      <text x="76" y="341" fill="#293248" font-family="Arial, sans-serif" font-size="21" font-weight="700">Hiring is picking up</text>
-      <text x="76" y="366" fill="#8992a5" font-family="Arial, sans-serif" font-size="14">Illustrative vacancy activity by sector</text>
-      <g stroke="#edf0f5">
-        <path d="M90 420H550M90 480H550M90 540H550M90 600H550M90 660H550"/>
-      </g>
-      <path d="M90 600 L132 585 L174 590 L216 560 L258 570 L300 535 L342 545 L384 510 L426 520 L468 475 L510 485 L550 440" fill="none" stroke="#5269df" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M90 630 L132 620 L174 625 L216 610 L258 615 L300 590 L342 600 L384 580 L426 585 L468 555 L510 560 L550 530" fill="none" stroke="#34b89a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M90 650 L132 642 L174 646 L216 638 L258 632 L300 640 L342 625 L384 630 L426 610 L468 615 L510 595 L550 585" fill="none" stroke="#efb554" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-      <g fill="#818a9d" font-family="Arial, sans-serif" font-size="12">
-        <text x="90" y="687">NOV</text><text x="175" y="687">JAN</text><text x="260" y="687">MAR</text>
-        <text x="345" y="687">MAY</text><text x="430" y="687">JUL</text><text x="520" y="687">OCT</text>
-      </g>
-      <circle cx="100" cy="735" r="5" fill="#5269df"/><text x="112" y="740" fill="#818a9d" font-family="Arial, sans-serif" font-size="13">Business &amp; finance</text>
-      <circle cx="275" cy="735" r="5" fill="#34b89a"/><text x="287" y="740" fill="#818a9d" font-family="Arial, sans-serif" font-size="13">Technology</text>
-      <circle cx="405" cy="735" r="5" fill="#efb554"/><text x="417" y="740" fill="#818a9d" font-family="Arial, sans-serif" font-size="13">Health &amp; care</text>
+      <text x="76" y="341" fill="#293248" font-family="Arial, sans-serif" font-size="21" font-weight="700">Vacancy activity</text>
+      <text x="76" y="366" fill="#8992a5" font-family="Arial, sans-serif" font-size="14">${importedData ? `Imported data · ${escapeSvgText(periodSelect.selectedOptions[0].textContent)}` : "Illustrative vacancy activity by sector"}</text>
+      <g fill="none" stroke="#edf0f5" font-family="Arial, sans-serif">${yAxisMarkup}</g>
+      <g transform="translate(90 395) scale(.6389 1.25)">${lineMarkup}</g>
+      <g fill="#818a9d" font-family="Arial, sans-serif" font-size="12">${dateLabelsMarkup}</g>
+      ${legendMarkup}
 
       <rect x="612" y="300" width="540" height="414" rx="12" fill="#fff" stroke="#edf0f5"/>
       <text x="644" y="341" fill="#8992a5" font-family="Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="1">YOUR NEXT MOVE</text>
@@ -396,16 +815,13 @@ async function downloadSnapshotImage() {
       <rect x="644" y="399" width="190" height="31" rx="15" fill="#eaf8f3"/>
       <text x="660" y="420" fill="#269976" font-family="Arial, sans-serif" font-size="14" font-weight="700">${escapeSvgText(role.outlook)}</text>
       <text x="644" y="468" fill="#8992a5" font-family="Arial, sans-serif" font-size="13" font-weight="700">RECOMMENDED SKILLS</text>
-      ${role.skills.map((skill, index) => `
-        <rect x="644" y="${486 + index * 43}" width="460" height="32" rx="7" fill="#f5f7fb"/>
-        <text x="660" y="${507 + index * 43}" fill="#526078" font-family="Arial, sans-serif" font-size="15">${escapeSvgText(skill)}</text>
-      `).join("")}
-      <text x="644" y="682" fill="#69738a" font-family="Arial, sans-serif" font-size="14">Skills match opportunity</text>
+      ${skillsMarkup}
+      <text x="644" y="682" fill="#69738a" font-family="Arial, sans-serif" font-size="14">Career suitability</text>
       <text x="1098" y="682" fill="#293248" font-family="Arial, sans-serif" font-size="16" font-weight="700" text-anchor="end">${role.match}%</text>
       <rect x="644" y="694" width="460" height="8" rx="4" fill="#edf0f5"/>
       <rect x="644" y="694" width="${Math.round(460 * role.match / 100)}" height="8" rx="4" fill="#5269df"/>
 
-      <text x="48" y="780" fill="#8992a5" font-family="Arial, sans-serif" font-size="13">Prototype sample data — illustrative only, not official labor-market statistics.</text>
+      <text x="48" y="780" fill="#8992a5" font-family="Arial, sans-serif" font-size="13">${escapeSvgText(document.querySelector("#data-disclaimer").textContent)}</text>
     </svg>`;
   const svgUrl = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
 
@@ -500,6 +916,14 @@ const chartSeries = {
 };
 
 function updateChart() {
+  if (liveTrendRows.length) {
+    renderLiveTrend();
+    return;
+  }
+  if (hasImportedMarketData) {
+    renderEmptyTrend();
+    return;
+  }
   const series = chartSeries[periodSelect.value];
   const lines = chart.querySelectorAll(".chart-line");
   lines.forEach((line, index) => line.setAttribute("d", series.paths[index]));
@@ -517,5 +941,94 @@ function updateChart() {
   chart.setAttribute("aria-label", `Illustrative vacancy activity over the ${selectedPeriod} across business, technology, and health sectors`);
 }
 
-periodSelect.addEventListener("change", updateChart);
+function renderLiveTrend() {
+  const totals = new Map();
+  const rowsByMonth = new Map();
+  liveTrendRows.forEach((row) => {
+    const month = String(row.month).slice(0, 7);
+    totals.set(row.sector, (totals.get(row.sector) ?? 0) + Number(row.vacancies));
+    if (!rowsByMonth.has(month)) rowsByMonth.set(month, new Map());
+    rowsByMonth.get(month).set(row.sector, Number(row.vacancies));
+  });
+  const sectors = [...totals.entries()].sort((left, right) => right[1] - left[1]).slice(0, 3);
+  const labels = [...rowsByMonth.keys()].sort();
+  const colors = ["#5269df", "#34b89a", "#efb554"];
+  const maximum = Math.max(1, ...liveTrendRows.map((row) => Number(row.vacancies)));
+  const lines = chart.querySelectorAll(".chart-line");
+
+  sectors.forEach(([sector], sectorIndex) => {
+    const points = labels.map((month, index) => {
+      const x = labels.length <= 1 ? 360 : (index * 720) / (labels.length - 1);
+      const vacancies = rowsByMonth.get(month).get(sector) ?? 0;
+      const y = 202 - (vacancies / maximum) * 188;
+      return { x, y };
+    });
+    const coordinates = points.map(({ x, y }, index) => `${index ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+    lines[sectorIndex].setAttribute("d", coordinates);
+    lines[sectorIndex].style.stroke = colors[sectorIndex];
+  });
+  for (let index = sectors.length; index < lines.length; index += 1) {
+    lines[index].setAttribute("d", "");
+  }
+
+  const area = chart.querySelector(".chart-area");
+  if (sectors.length) {
+    const firstPoints = lines[0].getAttribute("d").match(/[\d.]+/g);
+    if (firstPoints?.length >= 2) {
+      const firstX = firstPoints[0];
+      const lastX = firstPoints[firstPoints.length - 2];
+      area.setAttribute("d", `${lines[0].getAttribute("d")} L${lastX} 202 L${firstX} 202 Z`);
+    }
+  }
+
+  document.querySelector(".chart-legend").replaceChildren(...sectors.map(([sector], index) => {
+    const item = document.createElement("span");
+    const dot = document.createElement("i");
+    dot.className = "legend-dot";
+    dot.style.setProperty("--dot", colors[index]);
+    item.append(dot, document.createTextNode(` ${sector}`));
+    return item;
+  }));
+  chartLabels.replaceChildren(...labels.map((month) => {
+    const item = document.createElement("span");
+    item.textContent = new Date(`${month}-01T00:00:00Z`).toLocaleDateString(undefined, {
+      month: "short",
+      year: labels.length > 12 ? "2-digit" : undefined,
+      timeZone: "UTC",
+    });
+    return item;
+  }));
+  document.querySelector(".y-labels").replaceChildren(...[1, 0.75, 0.5, 0.25, 0].map((proportion) => {
+    const label = document.createElement("span");
+    label.textContent = Math.round(maximum * proportion).toLocaleString();
+    return label;
+  }));
+  const selectedPeriod = periodSelect.selectedOptions[0].textContent.toLowerCase();
+  chart.setAttribute("aria-label", `Imported vacancy activity over the ${selectedPeriod} across ${sectors.map(([sector]) => sector).join(", ") || "no matching sectors"}`);
+}
+
+function renderEmptyTrend() {
+  chart.querySelector(".chart-area").setAttribute("d", "");
+  chart.querySelectorAll(".chart-line").forEach((line) => line.setAttribute("d", ""));
+  document.querySelector(".chart-legend").replaceChildren(
+    document.createTextNode("No imported postings in this period."),
+  );
+  chartLabels.replaceChildren();
+  document.querySelector(".y-labels").replaceChildren();
+  const selectedPeriod = periodSelect.selectedOptions[0].textContent.toLowerCase();
+  chart.setAttribute("aria-label", `No imported vacancy activity for the ${selectedPeriod}`);
+}
+
+periodSelect.addEventListener("change", async () => {
+  liveTrendRows = [];
+  updateChart();
+  try {
+    const result = await apiRequest(`/api/market/trends?months=${periodSelect.value}`);
+    liveTrendRows = result.months;
+    updateChart();
+  } catch (error) {
+    showApiError(error);
+  }
+});
 updateChart();
+loadDashboardData();

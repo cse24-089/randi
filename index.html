@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f5f7fb" />
     <meta
       name="description"
-      content="A prototype dashboard exploring Botswana job-market trends and skills demand."
+      content="Explore Botswana labour-market trends, in-demand skills, career pathways, and training opportunities."
     />
     <meta property="og:title" content="Thuso — Botswana Skills Intelligence" />
     <meta
@@ -74,12 +74,16 @@
             <span>Saved insights</span>
             <span class="nav-count">0</span>
           </a>
+          <a class="nav-link admin-nav-link" href="#admin" data-view="Data administration" aria-label="Data administration" title="Data administration" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 12h8M8 15h5"/></svg>
+            <span>Data administration</span>
+          </a>
         </nav>
 
         <div class="sidebar-spacer"></div>
         <div class="profile">
-          <div class="avatar">D</div>
-          <div class="profile-copy"><strong>Demo user</strong><span>Career explorer</span></div>
+          <div class="avatar">G</div>
+          <div class="profile-copy"><strong>Guest</strong><span>Browsing as guest</span></div>
           <button class="icon-button profile-menu" aria-label="Profile options" type="button">
             <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
           </button>
@@ -90,8 +94,8 @@
         <header class="topbar">
           <div class="breadcrumb"><span>Workspace</span><span class="crumb-slash">/</span><strong id="page-heading">Overview</strong></div>
           <div class="topbar-actions">
-            <span class="updated-label">PROTOTYPE · ILLUSTRATIVE DATA</span>
-            <button class="button button-outline auth-button" id="auth-toggle" type="button">End demo</button>
+            <span class="updated-label">CONNECTING TO MARKET DATA…</span>
+            <button class="button button-outline auth-button" id="auth-toggle" type="button">Sign in</button>
             <button class="icon-button notification-button" aria-label="Notifications" type="button">
               <svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Zm-8 12h4"/></svg>
             </button>
@@ -114,23 +118,23 @@
           <section class="stat-grid" aria-label="Market snapshot metrics">
             <article class="stat-card">
               <div class="stat-top"><span>VACANCIES TRACKED</span><span class="stat-icon blue"><svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v2m-11 5h16m-10 0v2h4v-2"/></svg></span></div>
-              <div class="stat-value">1,284 <span class="trend positive">↗ 12.8%</span></div>
-              <p>Across 8 sectors <span class="muted-dot">·</span> illustrative sample</p>
+              <div class="stat-value"><span id="metric-vacancies">1,284</span> <span class="trend positive" id="metric-vacancy-change">↗ 12.8%</span></div>
+              <p id="metric-vacancy-caption">Across 8 sectors <span class="muted-dot">·</span> illustrative sample</p>
             </article>
             <article class="stat-card">
               <div class="stat-top"><span>HIRING MOMENTUM</span><span class="stat-icon green"><svg viewBox="0 0 24 24"><path d="m4 16 5-5 4 3 7-8"/><path d="M14 6h6v6"/></svg></span></div>
-              <div class="stat-value">+18.4% <span class="trend positive">↗ 4.2%</span></div>
-              <p>Year-on-year change <span class="muted-dot">·</span> sample postings</p>
+              <div class="stat-value"><span id="metric-momentum">+18.4%</span></div>
+              <p id="metric-momentum-caption">Year-on-year change <span class="muted-dot">·</span> sample postings</p>
             </article>
             <article class="stat-card">
               <div class="stat-top"><span>IN-DEMAND SKILLS</span><span class="stat-icon violet"><svg viewBox="0 0 24 24"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/></svg></span></div>
-              <div class="stat-value">46 <span class="stat-caption">skills identified</span></div>
+              <div class="stat-value"><span id="metric-skills">46</span> <span class="stat-caption">skills identified</span></div>
               <p>Across roles and industries</p>
             </article>
             <article class="stat-card">
               <div class="stat-top"><span>MEDIAN SALARY</span><span class="stat-icon amber"><svg viewBox="0 0 24 24"><path d="M12 3v18m4-14.5C16 5 14.5 4 12 4S8 5.2 8 7s1.5 2.6 4 3 4 1.3 4 3.5-1.8 3.5-4 3.5-4-.8-4-2.5"/></svg></span></div>
-              <div class="stat-value">P 8,450 <span class="stat-caption">/ month</span></div>
-              <p>Sampled roles with salary data</p>
+              <div class="stat-value"><span id="metric-salary">P 8,450</span> <span class="stat-caption">/ month</span></div>
+              <p id="metric-salary-caption">Sampled roles with salary data</p>
             </article>
           </section>
 
@@ -227,7 +231,7 @@
                   <button class="text-button" data-jump="learning" type="button">Explore skills <span>→</span></button>
                 </div>
               </div>
-              <div class="skills-table">
+              <div class="skills-table" id="skills-table">
                 <div class="table-head"><span>SKILL</span><span>DEMAND</span><span>CHANGE</span></div>
                 <div class="skill-row"><div class="skill-name"><span class="skill-dot dot-digital"></span><strong>Data analysis</strong><small>Digital</small></div><div class="demand-cell"><div class="demand-track"><span style="width:88%"></span></div><strong>88%</strong></div><span class="change-tag up">↗ 14%</span></div>
                 <div class="skill-row"><div class="skill-name"><span class="skill-dot dot-business"></span><strong>Financial reporting</strong><small>Business</small></div><div class="demand-cell"><div class="demand-track"><span style="width:76%"></span></div><strong>76%</strong></div><span class="change-tag up">↗ 9%</span></div>
@@ -260,7 +264,7 @@
                 <h3 id="role-title">Data analyst</h3>
                 <p id="role-summary">Growing demand across finance, retail, and public services.</p>
                 <div class="role-skills" id="role-skills"></div>
-                <div class="match-row"><span>Skills match opportunity</span><strong id="match-value">78%</strong></div>
+                <div class="match-row"><span>Career suitability</span><strong id="match-value">78%</strong></div>
                 <div class="match-track"><span id="match-bar" style="width:78%"></span></div>
               </div>
               <div class="pathway-actions">
@@ -279,7 +283,7 @@
                   <p>Employers to explore across Botswana</p>
                 </div>
               </div>
-              <ul class="directory-list">
+              <ul class="directory-list" id="employer-list">
                 <li><strong>Botswana Telecommunications Corporation</strong><span>Technology · Customer service</span></li>
                 <li><strong>First National Bank Botswana</strong><span>Finance · Data · Digital services</span></li>
                 <li><strong>Debswana</strong><span>Mining · Engineering · Operations</span></li>
@@ -295,7 +299,7 @@
                   <p>Institutions to explore for skills and qualifications</p>
                 </div>
               </div>
-              <ul class="directory-list">
+              <ul class="directory-list" id="training-list">
                 <li><strong>Botswana Accountancy College</strong><span>Accounting · Finance · Business · ICT</span></li>
                 <li><strong>University of Botswana</strong><span>Higher education · Research · Professional fields</span></li>
                 <li><strong>Botho University</strong><span>Technology · Business · Health education</span></li>
@@ -314,9 +318,34 @@
             </div>
             <div class="saved-list" id="saved-list" aria-live="polite"></div>
           </section>
+          <section class="admin-page panel" id="admin" hidden>
+            <div class="panel-heading">
+              <div>
+                <div class="section-kicker">ADMINISTRATION</div>
+                <h2>Manage labour-market data</h2>
+                <p>Upload validated CSV datasets. Imports are checked and applied transactionally.</p>
+              </div>
+            </div>
+            <div class="admin-import-grid">
+              <form id="market-import-form" class="form-stack">
+                <label class="role-label" for="market-csv">Job postings or training providers CSV</label>
+                <input id="market-csv" name="file" type="file" accept=".csv,text/csv" required />
+                <button class="button button-primary" type="submit">Validate and import</button>
+              </form>
+              <div class="admin-templates">
+                <p>Use a template to ensure columns and values are valid.</p>
+                <a class="text-button" href="/api/admin/template/jobs.csv">Download jobs template</a>
+                <a class="text-button" href="/api/admin/template/training.csv">Download training template</a>
+              </div>
+            </div>
+            <h3 class="admin-history-heading">System overview</h3>
+            <div id="admin-overview" class="admin-overview" aria-live="polite">Sign in as an administrator to load system metrics.</div>
+            <h3 class="admin-history-heading">Recent imports</h3>
+            <div id="import-history" class="import-history" aria-live="polite">Sign in as an administrator to load imports.</div>
+          </section>
           <footer class="page-footer">
             <span>Thuso <span class="footer-dot">·</span> Helping Botswana grow with insight.</span>
-            <span>Prototype for exploration <span class="footer-dot">·</span> Data shown is illustrative.</span>
+            <span id="data-disclaimer">Illustrative sample data until an administrator imports a dataset.</span>
           </footer>
         </div>
       </main>
