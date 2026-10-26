@@ -8,6 +8,11 @@
       name="description"
       content="A prototype dashboard exploring Botswana job-market trends and skills demand."
     />
+    <meta property="og:title" content="Thuso — Botswana Skills Intelligence" />
+    <meta
+      property="og:description"
+      content="Explore illustrative Botswana job-market trends, in-demand skills, and career pathways."
+    />
     <title>Thuso — Botswana Skills Intelligence</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -35,36 +40,36 @@
         </a>
 
         <div class="nav-label">WORKSPACE</div>
-        <nav class="nav-list">
-          <a class="nav-link active" href="#overview" data-view="Overview">
+        <nav class="nav-list" aria-label="Workspace">
+          <a class="nav-link active" href="#overview" data-view="Overview" aria-label="Overview" title="Overview" aria-current="page">
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
             <span>Overview</span>
           </a>
-          <a class="nav-link" href="#trends" data-view="Market trends">
+          <a class="nav-link" href="#trends" data-view="Market trends" aria-label="Market trends" title="Market trends">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5V12m5 7.5V5m5 14.5v-9m5 9V8"/><path d="M2.5 20.5h19"/></svg>
             <span>Market trends</span>
           </a>
-          <a class="nav-link" href="#skills" data-view="Skills explorer">
+          <a class="nav-link" href="#skills" data-view="Skills explorer" aria-label="Skills explorer" title="Skills explorer">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 14.4 9l6 2.2-6 2.2-2.4 5.6-2.4-5.6-6-2.2L9.6 9 12 3.5Z"/><path d="m19 16 .9 2.1L22 19l-2.1.9L19 22l-.9-2.1L16 19l2.1-.9L19 16Z"/></svg>
             <span>Skills explorer</span>
           </a>
-          <a class="nav-link" href="#pathways" data-view="Career pathways">
+          <a class="nav-link" href="#pathways" data-view="Career pathways" aria-label="Career pathways" title="Career pathways">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6h3a4 4 0 0 1 4 4v1.5a4 4 0 0 0 4 4H21"/></svg>
             <span>Career pathways</span>
           </a>
-          <a class="nav-link" href="#employers" data-view="Hiring companies">
+          <a class="nav-link" href="#employers" data-view="Hiring companies" aria-label="Hiring companies" title="Hiring companies">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 20.5h17M5 20.5V8l7-4 7 4v12.5M9 11h.01M15 11h.01M9 14h.01M15 14h.01M10 20.5v-3h4v3"/></svg>
             <span>Hiring companies</span>
           </a>
-          <a class="nav-link" href="#learning" data-view="Skills &amp; education">
+          <a class="nav-link" href="#learning" data-view="Skills &amp; education" aria-label="Skills and education" title="Skills and education">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 9 9-5 9 5-9 5-9-5Zm4 2.5v5c3 2.5 7 2.5 10 0v-5M21 9v6"/></svg>
             <span>Skills &amp; education</span>
           </a>
         </nav>
 
         <div class="nav-label tools-label">YOUR TOOLS</div>
-        <nav class="nav-list">
-          <a class="nav-link" href="#saved" data-view="Saved insights">
+        <nav class="nav-list" aria-label="Your tools">
+          <a class="nav-link" href="#saved" data-view="Saved insights" aria-label="Saved insights" title="Saved insights">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.5h12v16l-6-3.8-6 3.8v-16Z"/></svg>
             <span>Saved insights</span>
             <span class="nav-count">0</span>
@@ -73,23 +78,22 @@
 
         <div class="sidebar-spacer"></div>
         <div class="profile">
-          <div class="avatar">KG</div>
-          <div class="profile-copy"><strong>K. Gosego</strong><span>Career explorer</span></div>
+          <div class="avatar">D</div>
+          <div class="profile-copy"><strong>Demo user</strong><span>Career explorer</span></div>
           <button class="icon-button profile-menu" aria-label="Profile options" type="button">
             <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
           </button>
         </div>
       </aside>
 
-      <main class="main-content" id="overview">
+      <main class="main-content" id="overview" tabindex="-1">
         <header class="topbar">
           <div class="breadcrumb"><span>Workspace</span><span class="crumb-slash">/</span><strong id="page-heading">Overview</strong></div>
           <div class="topbar-actions">
-            <span class="updated-label"><span class="live-dot"></span> SAMPLE DATASET · OCT 2026</span>
-            <button class="button button-outline auth-button" id="auth-toggle" type="button">Log out</button>
+            <span class="updated-label">PROTOTYPE · ILLUSTRATIVE DATA</span>
+            <button class="button button-outline auth-button" id="auth-toggle" type="button">End demo</button>
             <button class="icon-button notification-button" aria-label="Notifications" type="button">
               <svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Zm-8 12h4"/></svg>
-              <i></i>
             </button>
           </div>
         </header>
@@ -103,7 +107,7 @@
             </div>
             <button class="button button-outline" id="download-report" type="button">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v11m0 0 4-4m-4 4-4-4M5 16.5v4h14v-4"/></svg>
-              Export snapshot
+              Download PNG
             </button>
           </section>
 
@@ -130,7 +134,7 @@
             </article>
           </section>
 
-          <section class="dashboard-grid" id="trends">
+          <section class="dashboard-grid" id="trends" aria-label="Market trends">
             <article class="panel trend-panel">
               <div class="panel-heading">
                 <div>
